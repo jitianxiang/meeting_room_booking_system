@@ -1,0 +1,14 @@
+.login-wrapper {
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}

@@ -1,0 +1,7 @@
+.booking-list {
+  display: flex;
+  flex-direction: column;
+}
+.search {
+  margin-bottom: 10px;
+}

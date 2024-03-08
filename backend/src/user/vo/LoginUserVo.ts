@@ -7,7 +7,7 @@ interface UserInfo {
   phoneNumber: string;
   isFrozen: boolean;
   isAdmin: boolean;
-  createTime: number;
+  createTime: Date;
   roles: string[];
   permissions: string[];
 }

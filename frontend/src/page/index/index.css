@@ -1,0 +1,31 @@
+.index-wrapper {
+  height: 100%;
+  display: flex;
+}
+
+.header {
+  height: 60px;
+  background: white;
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  box-sizing: border-box;
+}
+
+.main {
+  width: calc(100% - 256px);
+  display: flex;
+  flex-direction: column;
+}
+
+.nav {
+  height: 100%;
+  width: 256px;
+  background: white;
+}
+
+.page {
+  height: calc(100% - 60px);
+  padding: 12px;
+  box-sizing: border-box;
+}

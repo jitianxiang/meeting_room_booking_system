@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './entities/user.entity';
-import { Repository } from 'typeorm';
+import { Like, Repository } from 'typeorm';
 import { RegisterUserDto } from './dto/RegisterUserDto';
 import { RedisService } from 'src/redis/redis.service';
 import { md5 } from 'src/utils';
@@ -15,6 +15,9 @@ import { Role } from './entities/role.entity';
 import { Permission } from './entities/permission.entity';
 import { LoginUserDto } from './dto/LoginUserDto';
 import { LoginUserVo } from './vo/LoginUserVo';
+import { UpdateUserPwdDto } from './dto/UpdateUserPwdDto';
+import { UpdateUserInfoDto } from './dto/UpdateUserInfoDto';
+import { UserListDto } from './dto/UserListDto';
 
 @Injectable()
 export class UserService {
@@ -128,7 +131,7 @@ export class UserService {
       email: user.email,
       phoneNumber: user.phoneNumber,
       headPic: user.headPic,
-      createTime: user.createTime.getTime(),
+      createTime: user.createTime,
       isFrozen: user.isFrozen,
       isAdmin: user.isAdmin,
       roles: user.roles.map((item) => item.name),
@@ -145,7 +148,7 @@ export class UserService {
     return vo;
   }
 
-  // 根据userId查找，返回user详情
+  // 根据userId查找，返回user详情(包含级联查找出来的roles和permissions)
   async findUserById(userId: number, isAdmin: boolean) {
     const user = await this.userRepository.findOne({
       where: {
@@ -158,6 +161,7 @@ export class UserService {
       id: user.id,
       username: user.username,
       isAdmin: user.isAdmin,
+      email: user.email,
       roles: user.roles.map((item) => item.name),
       permissions: user.roles.reduce((arr, item) => {
         item.permissions.forEach((permission) => {
@@ -167,6 +171,125 @@ export class UserService {
         });
         return arr;
       }, []),
+    };
+  }
+
+  // 根据id查找user基本信息(不包含roles和permissions)
+  async getUserInfo(userId: number) {
+    const user = await this.userRepository.findOne({
+      where: {
+        id: userId,
+      },
+    });
+    return user;
+  }
+
+  // 修改密码
+  async updatePassword(passwordDto: UpdateUserPwdDto) {
+    const captcha = await this.redisService.get(
+      `update_password_captcha_${passwordDto.email}`,
+    );
+    if (!captcha) {
+      throw new HttpException('验证码已失效', HttpStatus.BAD_REQUEST);
+    }
+    if (passwordDto.captcha !== captcha) {
+      throw new HttpException('验证码不正确', HttpStatus.BAD_REQUEST);
+    }
+    const foundUser = await this.userRepository.findOne({
+      where: {
+        username: passwordDto.username,
+      },
+    });
+    if (foundUser.email !== passwordDto.email) {
+      throw new HttpException('邮箱不正确', HttpStatus.BAD_REQUEST);
+    }
+    foundUser.password = md5(passwordDto.password);
+    try {
+      await this.userRepository.save(foundUser);
+      return '密码修改成功';
+    } catch (e) {
+      this.logger.error(e, UserService);
+      return '密码修改失败';
+    }
+  }
+
+  // 修改用户信息
+  async updateUserInfo(userId: number, userInfoDto: UpdateUserInfoDto) {
+    const captcha = await this.redisService.get(
+      `update_user_captcha_${userInfoDto.email}`,
+    );
+    if (!captcha) {
+      throw new HttpException('验证码已失效', HttpStatus.BAD_REQUEST);
+    }
+    if (userInfoDto.captcha !== captcha) {
+      throw new HttpException('验证码不正确', HttpStatus.BAD_REQUEST);
+    }
+
+    const foundUser = await this.userRepository.findOne({
+      where: {
+        id: userId,
+      },
+    });
+    if (userInfoDto.headPic) {
+      foundUser.headPic = userInfoDto.headPic;
+    }
+    if (userInfoDto.nickName) {
+      foundUser.nickName = userInfoDto.nickName;
+    }
+
+    try {
+      await this.userRepository.save(foundUser);
+      return '用户信息修改成功';
+    } catch (e) {
+      this.logger.error(e, UserService);
+      return '用户信息修改失败';
+    }
+  }
+
+  // 冻结用户
+  async freeze(userId: number) {
+    const user = await this.userRepository.findOne({
+      where: {
+        id: userId,
+      },
+    });
+    user.isFrozen = !user.isFrozen;
+    await this.userRepository.save(user);
+  }
+
+  // 用户列表分页查询
+  async getUserList(userListDto: UserListDto) {
+    const { pageNo, pageSize, username, nickName, email } = userListDto;
+    const skipCount = (pageNo - 1) * pageSize;
+    // 各个字段的模糊查询
+    const condition: Record<string, any> = {};
+    if (username) {
+      condition.username = Like(`%${username}%`);
+    }
+    if (nickName) {
+      condition.nickName = Like(`%${nickName}%`);
+    }
+    if (email) {
+      condition.email = Like(`%${email}%`);
+    }
+    const [users, totalCount] = await this.userRepository.findAndCount({
+      select: [
+        'id',
+        'username',
+        'nickName',
+        'email',
+        'phoneNumber',
+        'isFrozen',
+        'headPic',
+        'createTime',
+      ],
+      skip: skipCount,
+      take: pageSize,
+      where: condition,
+    });
+    return {
+      users,
+      totalCount,
     };
   }
 }

@@ -1,20 +1,27 @@
 import { Injectable } from '@nestjs/common';
-import { Resend } from 'resend';
+import { createTransport, Transporter } from 'nodemailer';
 
 @Injectable()
 export class EmailService {
+  transporter: Transporter;
+  constructor() {
+    this.transporter = createTransport({
+      host: 'smtp.qq.com',
+      port: 587,
+      secure: false,
+      auth: {
+        user: '1319706721@qq.com',
+        pass: 'hzzbokuuapdrhdeb',
+      },
+    });
+  }
   async sendEmail({ to, subject, html }) {
-    // resend免费邮件服务器发送示例邮件
-    const resend = new Resend('re_HeUX2Wgq_E9L5NmSr7JyhZYmKC7UcDxc7');
-    const { data, error } = await resend.emails.send({
-      from: 'onboarding@resend.dev',
+    const info = await this.transporter.sendMail({
+      from: '"Captcha" <1319706721@qq.com>',
       to,
       subject,
       html,
     });
-    if (error) {
-      return console.error({ error });
-    }
-    console.log({ data });
+    console.log(info);
   }
 }
