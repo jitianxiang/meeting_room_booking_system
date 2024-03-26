@@ -7,7 +7,6 @@ export function IndexPage() {
   const location = useLocation()
   const navigate = useNavigate()
   const onClick: MenuProps['onClick'] = (e) => {
-    console.log('click ', e);
     navigate('/' + e.keyPath.reverse().join('/'))
   };
   const items = [
